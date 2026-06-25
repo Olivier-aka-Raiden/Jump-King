@@ -254,6 +254,14 @@ function keyPressed() {
             landSound.stop();
             fallSound.stop();
             break;
+        case 'Q':
+        case 'q':
+            player.leftHeld = true;
+            break;
+        case 'D':
+        case 'd':
+            player.rightHeld = true;
+            break;
     }
 
     switch (keyCode) {
@@ -312,12 +320,14 @@ function keyReleased() {
                 print(player.currentLevelNo);
             }
             break;
+        case 'Q':
+        case 'q':
+            player.leftHeld = false;
+            break;
         case 'D':
-            if (creatingLines) {
-
-                mousePos1 = null;
-                mousePos2 = null;
-            }
+        case 'd':
+            player.rightHeld = false;
+            break;
     }
 
     switch (keyCode) {

@@ -418,7 +418,7 @@ class Dashboard {
 
 
     handleKey(key, keyCode) {
-        if (key === 'D' || key === 'd') {
+        if (key === 'J' || key === 'j') {
             this.visible = !this.visible;
             return true;
         }
