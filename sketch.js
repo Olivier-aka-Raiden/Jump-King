@@ -80,6 +80,7 @@ function setup() {
     player = new Player();
     population = new Population(600);
     setupLevels();
+    setupDashboard();         // ← Init dashboard
     jumpSound.playMode('sustain');
     fallSound.playMode('sustain');
     bumpSound.playMode('sustain');
@@ -134,15 +135,18 @@ function draw() {
     // }
     push()
     translate(0, 50);
+    let shouldUpdate = !dash || !dash.paused;
     if (testingSinglePlayer) {
         image(levels[player.currentLevelNo].levelImage, 0, 0)
         levels[player.currentLevelNo].show();
-        player.Update();
+        if (shouldUpdate) player.Update();
         player.Show();
     } else if(replayingBestPlayer) {
         if(!cloneOfBestPlayer.hasFinishedInstructions){
-            for (let i = 0; i < evolationSpeed; i++){
-                cloneOfBestPlayer.Update()
+            if (shouldUpdate) {
+                for (let i = 0; i < evolationSpeed; i++){
+                    cloneOfBestPlayer.Update()
+                }
             }
 
             showLevel(cloneOfBestPlayer.currentLevelNo);
@@ -155,14 +159,16 @@ function draw() {
 
     }else{
 
-        if (population.AllPlayersFinished()) {
-            population.NaturalSelection();
-            if (population.gen % increaseActionsEveryXGenerations === 0) {
-                population.IncreasePlayerMoves(increaseActionsByAmount);
+        if (shouldUpdate) {
+            if (population.AllPlayersFinished()) {
+                population.NaturalSelection();
+                if (population.gen % increaseActionsEveryXGenerations === 0) {
+                    population.IncreasePlayerMoves(increaseActionsByAmount);
+                }
             }
+            for (let i = 0; i < evolationSpeed; i++)
+                population.Update()
         }
-        for (let i = 0; i < evolationSpeed; i++)
-            population.Update()
         // population.Update()
         // population.Update()
         population.Show();
@@ -196,6 +202,7 @@ function draw() {
         text('Best Height: ' + population.bestHeight, 400, 35);
     }
 
+    drawDashboard();
 
 }
 
@@ -232,6 +239,8 @@ function setupCanvas() {
 
 
 function keyPressed() {
+    if (dash && dash.handleKey(key, keyCode)) return;
+
     switch (key) {
         case ' ':
             player.jumpHeld = true
@@ -337,6 +346,8 @@ let linesString = "";
 
 
 function mouseClicked() {
+    if (dash && dash.handleClick()) return;
+
     if (creatingLines) {
         let snappedX = mouseX - mouseX % 20;
         let snappedY = mouseY - mouseY % 20;
@@ -360,6 +371,14 @@ function mouseClicked() {
 
     }
     print("levels[" + player.currentLevelNo + "].coins.push(new Coin( " + floor(mouseX) + "," + floor(mouseY - 50) + ' , "progress" ));');
+}
+
+function mouseReleased() {
+    handleDashboardMouseReleased();
+}
+
+function mouseDragged() {
+    handleDashboardMouseDragged();
 }
 
 //todo
