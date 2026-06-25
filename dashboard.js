@@ -250,7 +250,7 @@ class Dashboard {
         this._drawStatLine('Best Height', pop.bestHeight, this._col.text, y);    y += 18;
         this._drawStatLine('Actions', best.brain.instructions.length, this._col.text, y); y += 18;
         this._drawStatLine('Alive', alive + '/' + pop.players.length, alive > 0 ? this._col.green : this._col.red, y); y += 18;
-        this._drawStatLine('FPS', floor(getFrameRate()), this._col.text, y);    y += 18;
+        this._drawStatLine('FPS', floor(frameRate()), this._col.text, y);    y += 18;
         this._drawStatLine('Speed', '×' + evolationSpeed, this._col.text, y);   y += 18;
 
         // Best Fitness
@@ -296,6 +296,10 @@ class Dashboard {
         let startY = this._tabY + 25;
         let y = startY - this._paramsScrollY;
         let clipH = height - startY - 10;
+
+        // ── Clip to visible content area ─────────────────────────
+        push();
+        clip(mouseX < px + this.pw ? cx : 0, startY, cw, clipH);
 
         // ── Section loop ─────────────────────────────────────────
         let currentSection = '';
@@ -388,15 +392,7 @@ class Dashboard {
         // ── Store total content height for scroll bounds ─────────
         this._paramsContentH = y - startY + this._paramsScrollY + 20;
 
-        // ── Draw overflow mask (no clip() — old p5.js) ──────────
-        fill(this._col.bg);
-        noStroke();
-        // Top mask: cover anything above the viewport
-        rect(px + 1, this._tabY + 22, this.pw - 1, startY - this._tabY - 22);
-        // Bottom mask: cover anything below the viewport
-        if (startY + clipH < height) {
-            rect(px + 1, startY + clipH, this.pw - 1, height - startY - clipH);
-        }
+        pop(); // end clip
 
         // ── Scrollbar (if content overflows) ─────────────────────
         if (this._paramsContentH > clipH) {

@@ -411,7 +411,6 @@ class Player {
                 // ok we gonna need to snap this shit
                 this.currentPos.y = chosenLine.y1;
                 if (!mutePlayers || testingSinglePlayer) {
-                    bumpSound.playMode('sustain');
                     bumpSound.play();
                 }
 
@@ -439,7 +438,6 @@ class Player {
             if (!this.isOnGround) {
                 this.hasBumped = true;
                 if (!mutePlayers|| testingSinglePlayer) {
-                    bumpSound.playMode('sustain');
                     bumpSound.play();
                 }
             }
@@ -703,7 +701,6 @@ class Player {
         this.jumpTimer = 0
         this.jumpStartingHeight = (height - this.currentPos.y) + height * this.currentLevelNo;
         if (!mutePlayers|| testingSinglePlayer) {
-            jumpSound.playMode('sustain');
             jumpSound.play();
         }
     }
@@ -1265,10 +1262,8 @@ class Player {
 
         if (!mutePlayers|| testingSinglePlayer) {
             if (this.hasFallen) {
-                fallSound.playMode('sustain');
                 fallSound.play();
             } else {
-                landSound.playMode('sustain');
                 landSound.play();
             }
         }

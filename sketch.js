@@ -89,10 +89,6 @@ function setup() {
     population = new Population(populationSize);
     setupLevels();
     setupDashboard();         // ← Init dashboard
-    jumpSound.playMode('sustain');
-    fallSound.playMode('sustain');
-    bumpSound.playMode('sustain');
-    landSound.playMode('sustain');
 
     // lines.push(new Line(200,height - 80,width - 200, height-80));
     // lines.push(new Line(10,height - 500,200, height-500));
@@ -191,11 +187,6 @@ function draw() {
         drawMousePosition();
 
 
-    if (frameCount % 15 === 0) {
-        previousFrameRate = floor(getFrameRate())
-    }
-
-
     pop();
 
     fill(0);
@@ -205,8 +196,6 @@ function draw() {
     drawDashboard();
 
 }
-
-let previousFrameRate = 60;
 
 function showLevel(levelNumberToShow) {
     // print(levelNumberToShow)
