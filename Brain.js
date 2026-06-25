@@ -108,4 +108,54 @@ class Brain {
 
     }
 
+    // ── Crossover ───────────────────────────────────────────────
+    // Creates a new brain combining instructions from two parents.
+    // Single-point crossover at a random position.
+    static crossover(brainA, brainB) {
+        let child = new Brain(0, false);
+        let lenA = brainA.instructions.length;
+        let lenB = brainB.instructions.length;
+        let minLen = min(lenA, lenB);
+        let point = floor(random(1, minLen));  // at least 1 from each parent
+
+        child.instructions = [];
+        for (let i = 0; i < point; i++) {
+            child.instructions.push(brainA.instructions[i].clone());
+        }
+        for (let i = point; i < minLen; i++) {
+            child.instructions.push(brainB.instructions[i].clone());
+        }
+        // If one parent has more instructions, copy the tail
+        if (lenA > minLen) {
+            for (let i = minLen; i < lenA; i++) {
+                child.instructions.push(brainA.instructions[i].clone());
+            }
+        } else if (lenB > minLen) {
+            for (let i = minLen; i < lenB; i++) {
+                child.instructions.push(brainB.instructions[i].clone());
+            }
+        }
+
+        child.parentReachedBestLevelAtActionNo = min(
+            brainA.parentReachedBestLevelAtActionNo,
+            brainB.parentReachedBestLevelAtActionNo
+        );
+        return child;
+    }
+
+    // ── Export / Import --------------------------------------------
+    toJSON() {
+        return this.instructions.map(a => ({
+            j: a.isJump,
+            h: a.holdTime,
+            x: a.xDirection
+        }));
+    }
+
+    static fromJSON(data) {
+        let brain = new Brain(0, false);
+        brain.instructions = data.map(d => new AIAction(d.j, d.h, d.x));
+        return brain;
+    }
+
 }

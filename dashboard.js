@@ -50,8 +50,12 @@ class Dashboard {
         this._mode = { x: this.px + 10, y: 155, w: 240, h: 22,
                        opts: ['▶Human','▶AI'], cur: testingSinglePlayer ? 0 : 1 };
 
+        // Save / Load buttons
+        this._saveBtn = { x: this.px + 10, y: 186, w: 115, h: 22, label: '💾 Save Brain' };
+        this._loadBtn = { x: this.px + 135, y: 186, w: 115, h: 22, label: '📂 Load Brain' };
+
         // ── Section: Live Stats ──────────────────────────────────
-        this._statsY = 195;
+        this._statsY = 220;
 
         // ── Section: Parameters ──────────────────────────────────
         this._params = [
@@ -79,11 +83,28 @@ class Dashboard {
             { key: 'elitePct',    label: 'Elite %',       min: 0.01,max: 0.20,step: 0.01,
               val: elitePercent,  note: 'top % kept intact', section: 'EVOLUTION',
               apply: (v) => { elitePercent = v; } },
+            { key: 'adaptMut',    label: 'Adaptive Mut',  min: 0,   max: 1,   step: 1,
+              val: adaptiveMutate ? 1 : 0, note: 'boost mutation on stagnation', section: 'EVOLUTION',
+              apply: (v) => { adaptiveMutate = v >= 0.5; } },
 
             // Selection section
+            { key: 'tournSize',   label: 'Tournament',    min: 0,   max: 10,  step: 1,
+              val: tournamentSize, note: '0=roulette, 2+=tournament', section: 'SELECTION',
+              apply: (v) => { tournamentSize = v; } },
+            { key: 'crossRate',   label: 'Crossover',     min: 0,   max: 1,   step: 0.05,
+              val: crossoverRate, note: 'probability vs clone', section: 'SELECTION',
+              apply: (v) => { crossoverRate = v; } },
+            { key: 'rankFit',     label: 'Rank Fitness',  min: 0,   max: 1,   step: 1,
+              val: useRankFitness ? 1 : 0, note: 'rank-based instead of raw', section: 'SELECTION',
+              apply: (v) => { useRankFitness = v >= 0.5; } },
             { key: 'killBad',     label: 'Kill Weak',     min: 0,   max: 1,   step: 1,
               val: killBadPlayers ? 1 : 0, note: 'kill players below best level', section: 'SELECTION',
               apply: (v) => { killBadPlayers = v >= 0.5; } },
+
+            // Stagnation section
+            { key: 'stagLimit',   label: 'Stag. Limit',   min: 30,  max: 500, step: 10,
+              val: stagnationLimit, note: 'gen → diversity restart', section: 'STAGNATION',
+              apply: (v) => { stagnationLimit = v; } },
 
             // AI Behaviour section
             { key: 'jumpChance',  label: 'Jump Chance',   min: 0,   max: 1,   step: 0.05,
@@ -195,6 +216,10 @@ class Dashboard {
 
         // Mode toggle
         this._drawToggle(this._mode);
+
+        // ── Save / Load ─────────────────────────────────────────
+        this._drawBtn(this._saveBtn);
+        this._drawBtn(this._loadBtn);
     }
 
 
@@ -228,6 +253,10 @@ class Dashboard {
         // Best Fitness
         let bf = floor(best.fitness);
         this._drawStatLine('Best Fit', bf.toLocaleString(), this._col.accent, y); y += 18;
+
+        // Stagnation
+        let stagColor = pop.gensSinceNewLevel > stagnationLimit * 0.7 ? this._col.red : this._col.text;
+        this._drawStatLine('Stagnation', pop.gensSinceNewLevel + ' gen', stagColor, y); y += 18;
 
         // Recording chart data
         if (!testingSinglePlayer && pop.gen !== this._lastGenRecorded) {
@@ -584,6 +613,16 @@ class Dashboard {
             }
         }
 
+        // Save / Load
+        if (this._isOverB(this._saveBtn)) {
+            this._saveBrain();
+            return true;
+        }
+        if (this._isOverB(this._loadBtn)) {
+            this._loadBrain();
+            return true;
+        }
+
         // Speed slider drag start
         let s = this._speedS;
         if (this._isOver(s.x, s.y - 6, s.w, s.h + 16)) {
@@ -666,6 +705,81 @@ class Dashboard {
                 population = new Population(populationSize);
             }
         }
+    }
+
+
+    _saveBrain() {
+        if (testingSinglePlayer || !population) return;
+        let best = population.players[population.bestPlayerIndex];
+        let data = {
+            gen: population.gen,
+            bestHeight: population.bestHeight,
+            bestLevel: population.currentBestLevelReached,
+            instructions: best.brain.toJSON()
+        };
+        let jsonStr = JSON.stringify(data, null, 2);
+        // Trigger download
+        let blob = new Blob([jsonStr], {type: 'application/json'});
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement('a');
+        a.href = url;
+        a.download = 'brain-gen' + population.gen + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+
+    _loadBrain() {
+        let input = document.getElementById('brainFileInput');
+        if (!input) {
+            // Create hidden input on the fly
+            input = document.createElement('input');
+            input.type = 'file';
+            input.id = 'brainFileInput';
+            input.accept = '.json';
+            input.style.display = 'none';
+            document.body.appendChild(input);
+        }
+        input.onchange = (e) => {
+            let file = e.target.files[0];
+            if (!file) return;
+            let reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    let data = JSON.parse(ev.target.result);
+                    if (!data.instructions) {
+                        print("Invalid brain file: no instructions");
+                        return;
+                    }
+                    // Create a player from the saved brain
+                    let importedBrain = Brain.fromJSON(data.instructions);
+                    let importedPlayer = new Player();
+                    importedPlayer.brain = importedBrain;
+                    importedPlayer.hasFinishedInstructions = false;
+
+                    if (!testingSinglePlayer && population) {
+                        // Replace the worst player with the imported brain
+                        let worstIdx = 0;
+                        for (let i = 1; i < population.players.length; i++) {
+                            if (population.players[i].fitness < population.players[worstIdx].fitness) {
+                                worstIdx = i;
+                            }
+                        }
+                        population.players[worstIdx] = importedPlayer;
+                        print("Loaded brain from gen", data.gen || "?");
+                    } else {
+                        // Create a new population with this brain as the first player
+                        testingSinglePlayer = false;
+                        population = new Population(populationSize);
+                        population.players[0] = importedPlayer;
+                    }
+                } catch (err) {
+                    print("Failed to load brain:", err);
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
     }
 
 

@@ -48,6 +48,11 @@ let evolationSpeed = 1;
 let populationSize = 600;
 let elitePercent = 0.05;        // top 5% kept intact each gen
 let killBadPlayers = false;     // if true, players below best level get 0 fitness
+let tournamentSize = 3;         // 0 = roulette, 2+ = tournament selection
+let crossoverRate = 0.0;        // probability of crossover (0-1) vs clone
+let adaptiveMutate = false;     // increase mutation when stagnating
+let stagnationLimit = 150;      // generations without progress → diversity restart
+let useRankFitness = false;     // use rank-based instead of raw fitness
 
 
 function preload() {
