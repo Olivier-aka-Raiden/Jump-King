@@ -201,14 +201,6 @@ function draw() {
     fill(0);
     noStroke();
     rect(0, 0, width, 50);
-    if(!testingSinglePlayer){
-        textSize(32);
-        fill(255, 255, 255);
-        text('FPS: ' + previousFrameRate, width - 160, 35);
-        text('Gen: ' + population.gen, 30, 35);
-        text('Moves: ' + population.players[0].brain.instructions.length, 200, 35);
-        text('Best Height: ' + population.bestHeight, 400, 35);
-    }
 
     drawDashboard();
 
@@ -397,6 +389,11 @@ function mouseReleased() {
 
 function mouseDragged() {
     handleDashboardMouseDragged();
+}
+
+function mouseWheel(event) {
+    if (dash) return dash.handleWheel(event.delta);
+    return false;
 }
 
 //todo

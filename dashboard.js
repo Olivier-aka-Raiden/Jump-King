@@ -118,6 +118,9 @@ class Dashboard {
         ];
         this._paramsY = this._statsY;  // start Y for params content
         this._paramDragIdx = -1;       // which param is being dragged (-1 = none)
+        this._paramsScrollY = 0;       // scroll offset for params
+        this._paramsContentH = 0;      // total content height (for scroll bounds)
+        this._paramsViewH = height - this._tabY - 25; // visible area
 
         // ── Pause state ──────────────────────────────────────────
         this.paused = false;
@@ -288,11 +291,23 @@ class Dashboard {
         let px = this.px;
         let cx = px + 12;           // content start X
         let cw = this.pw - 24;      // content width
-        let y = this._paramsY;
+
+        // ── Start right below tabs ──────────────────────────────
+        let startY = this._tabY + 25;
+        let y = startY - this._paramsScrollY;
+
+        // ── Clipping region ─────────────────────────────────────
+        let clipH = height - startY - 10;
+        push();
+        noStroke();
+        rectMode(CORNER);
+        // Clip to panel content area
+        clip(cx, startY, this.pw - 24, clipH);
 
         // ── Section loop ─────────────────────────────────────────
         let currentSection = '';
         let paramIdx = 0;
+        let firstY = y;
 
         for (let p of this._params) {
             // Section header
@@ -307,8 +322,6 @@ class Dashboard {
             }
 
             // ── Label + Value row ─────────────────────────────────
-            let labelW = 100;
-            // Format value string
             let valStr = this._formatParamVal(p);
             fill(this._col.text);
             textAlign(LEFT, TOP);
@@ -331,28 +344,20 @@ class Dashboard {
                 let swX = cx, swY = y - 4;
                 let on = p.val >= 0.5;
 
-                // Background
                 fill(on ? this._col.green : this._col.btn);
                 rect(swX, swY, swW, swH, 11);
 
-                // Knob
                 fill(this._col.text);
                 let knobX = on ? swX + swW - swH + 2 : swX + 2;
                 ellipse(knobX + swH / 2 - 2, swY + swH / 2, swH - 6, swH - 6);
 
-                // Label next to toggle
                 fill(on ? this._col.green : this._col.dim);
                 textAlign(LEFT, CENTER);
                 textSize(10);
                 textFont('Courier');
                 text(on ? 'ON' : 'OFF', swX + swW + 8, swY + swH / 2);
 
-                // Save hit area
-                p._hitX = swX;
-                p._hitY = swY;
-                p._hitW = swW + 40;
-                p._hitH = swH;
-                // Override interaction: toggle on any click
+                p._hitX = swX; p._hitY = swY; p._hitW = swW + 40; p._hitH = swH;
                 p._isToggle = true;
 
                 y += swH + 2;
@@ -364,17 +369,12 @@ class Dashboard {
                 fill(this._col.track);
                 rect(cx, trackTop, cw, trackH, 4);
 
-                // Thumb
                 let thumbX = map(p.val, p.min, p.max, cx + 4, cx + cw - 4);
                 let isDragging = (paramIdx === this._paramDragIdx);
                 fill(isDragging ? this._col.accent : this._col.thumb);
                 ellipse(thumbX, trackTop + trackH / 2, isDragging ? 16 : 13, isDragging ? 16 : 13);
 
-                // Save position for hit-testing
-                p._hitX = cx;
-                p._hitY = trackTop - 6;
-                p._hitW = cw;
-                p._hitH = trackH + 12;
+                p._hitX = cx; p._hitY = trackTop - 6; p._hitW = cw; p._hitH = trackH + 12;
                 p._isToggle = false;
 
                 y += trackH + 4;
@@ -394,13 +394,27 @@ class Dashboard {
             paramIdx++;
         }
 
-        // ── Reset hint at bottom ─────────────────────────────────
-        if (y < height - 60) {
+        // ── Store total content height for scroll bounds ─────────
+        this._paramsContentH = y - startY + this._paramsScrollY + 20;
+
+        // ── Scrollbar (if content overflows) ─────────────────────
+        if (this._paramsContentH > clipH) {
+            let barH = clipH * (clipH / this._paramsContentH);
+            let maxScroll = this._paramsContentH - clipH;
+            let barY = startY + (this._paramsScrollY / maxScroll) * (clipH - barH);
+            fill(this._col.btn);
+            rect(px + this.pw - 8, barY, 4, barH, 2);
+        }
+
+        pop(); // end clip
+
+        // ── Hint text at bottom ─────────────────────────────────
+        if (this._paramsContentH > clipH + 5) {
             fill(this._col.dim);
-            textAlign(CENTER, TOP);
+            textAlign(CENTER, BOTTOM);
             textSize(8);
             textFont('Courier');
-            text('Some params need a Reset to take effect', px + this.pw / 2, height - 40);
+            text('scroll ↑↓ for more', px + this.pw / 2, height - 8);
         }
     }
 
@@ -656,6 +670,17 @@ class Dashboard {
             return true;
         }
         return false;
+    }
+
+
+    handleWheel(delta) {
+        if (!this.visible || this.activeTab !== 'params') return false;
+        // Only scroll if content overflows
+        let clipH = height - this._tabY - 35;
+        if (this._paramsContentH <= clipH) return false;
+        let maxScroll = this._paramsContentH - clipH;
+        this._paramsScrollY = constrain(this._paramsScrollY + delta * 0.5, 0, maxScroll);
+        return true;
     }
 
 
