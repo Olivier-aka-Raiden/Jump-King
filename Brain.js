@@ -94,7 +94,6 @@ class Brain {
         // let mutationRate = 0.1;
 
         actionNumber -=1; // this is done because im a bad programmer
-        let chanceOfNewInstruction = 0.2;
         if (random() < chanceOfNewInstruction) {
             this.instructions[actionNumber] = this.getRandomAction()
         } else{

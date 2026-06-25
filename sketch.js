@@ -46,6 +46,8 @@ let increaseActionsByAmount = 5;
 let increaseActionsEveryXGenerations = 10;
 let evolationSpeed = 1;
 let populationSize = 600;
+let elitePercent = 0.05;        // top 5% kept intact each gen
+let killBadPlayers = false;     // if true, players below best level get 0 fitness
 
 
 function preload() {

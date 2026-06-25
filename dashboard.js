@@ -76,6 +76,14 @@ class Dashboard {
             { key: 'addEvery',    label: 'Every N gen',   min: 1,   max: 50,  step: 1,
               val: increaseActionsEveryXGenerations, note: '', section: 'EVOLUTION',
               apply: (v) => { increaseActionsEveryXGenerations = v; } },
+            { key: 'elitePct',    label: 'Elite %',       min: 0.01,max: 0.20,step: 0.01,
+              val: elitePercent,  note: 'top % kept intact', section: 'EVOLUTION',
+              apply: (v) => { elitePercent = v; } },
+
+            // Selection section
+            { key: 'killBad',     label: 'Kill Weak',     min: 0,   max: 1,   step: 1,
+              val: killBadPlayers ? 1 : 0, note: 'kill players below best level', section: 'SELECTION',
+              apply: (v) => { killBadPlayers = v >= 0.5; } },
 
             // AI Behaviour section
             { key: 'jumpChance',  label: 'Jump Chance',   min: 0,   max: 1,   step: 0.05,
@@ -285,26 +293,63 @@ class Dashboard {
 
             y += 14;
 
-            // ── Slider track ──────────────────────────────────────
-            let trackH = 8;
-            let trackTop = y;
+            // ── Is it a boolean toggle? ──────────────────────────
+            let isBool = (p.min === 0 && p.max === 1 && p.step === 1);
 
-            fill(this._col.track);
-            rect(cx, trackTop, cw, trackH, 4);
+            if (isBool) {
+                // ── Toggle switch ─────────────────────────────────
+                let swW = 44, swH = 22;
+                let swX = cx, swY = y - 4;
+                let on = p.val >= 0.5;
 
-            // Thumb
-            let thumbX = map(p.val, p.min, p.max, cx + 4, cx + cw - 4);
-            let isDragging = (paramIdx === this._paramDragIdx);
-            fill(isDragging ? this._col.accent : this._col.thumb);
-            ellipse(thumbX, trackTop + trackH / 2, isDragging ? 16 : 13, isDragging ? 16 : 13);
+                // Background
+                fill(on ? this._col.green : this._col.btn);
+                rect(swX, swY, swW, swH, 11);
 
-            // Save position for hit-testing
-            p._hitX = cx;
-            p._hitY = trackTop - 6;
-            p._hitW = cw;
-            p._hitH = trackH + 12;
+                // Knob
+                fill(this._col.text);
+                let knobX = on ? swX + swW - swH + 2 : swX + 2;
+                ellipse(knobX + swH / 2 - 2, swY + swH / 2, swH - 6, swH - 6);
 
-            y += trackH + 4;
+                // Label next to toggle
+                fill(on ? this._col.green : this._col.dim);
+                textAlign(LEFT, CENTER);
+                textSize(10);
+                textFont('Courier');
+                text(on ? 'ON' : 'OFF', swX + swW + 8, swY + swH / 2);
+
+                // Save hit area
+                p._hitX = swX;
+                p._hitY = swY;
+                p._hitW = swW + 40;
+                p._hitH = swH;
+                // Override interaction: toggle on any click
+                p._isToggle = true;
+
+                y += swH + 2;
+            } else {
+                // ── Slider track ──────────────────────────────────
+                let trackH = 8;
+                let trackTop = y;
+
+                fill(this._col.track);
+                rect(cx, trackTop, cw, trackH, 4);
+
+                // Thumb
+                let thumbX = map(p.val, p.min, p.max, cx + 4, cx + cw - 4);
+                let isDragging = (paramIdx === this._paramDragIdx);
+                fill(isDragging ? this._col.accent : this._col.thumb);
+                ellipse(thumbX, trackTop + trackH / 2, isDragging ? 16 : 13, isDragging ? 16 : 13);
+
+                // Save position for hit-testing
+                p._hitX = cx;
+                p._hitY = trackTop - 6;
+                p._hitW = cw;
+                p._hitH = trackH + 12;
+                p._isToggle = false;
+
+                y += trackH + 4;
+            }
 
             // ── Note ──────────────────────────────────────────────
             if (p.note) {
@@ -489,8 +534,15 @@ class Dashboard {
             for (let i = 0; i < this._params.length; i++) {
                 let p = this._params[i];
                 if (p._hitX !== undefined && this._isOver(p._hitX, p._hitY, p._hitW, p._hitH)) {
-                    this._paramDragIdx = i;
-                    this._updateParamSlider(p);
+                    if (p._isToggle) {
+                        // Toggle switches: flip value
+                        p.val = p.val >= 0.5 ? 0 : 1;
+                        if (p.apply) p.apply(p.val);
+                    } else {
+                        // Sliders: start drag
+                        this._paramDragIdx = i;
+                        this._updateParamSlider(p);
+                    }
                     return true;
                 }
             }

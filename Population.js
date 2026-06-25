@@ -117,11 +117,19 @@ class Population {
 
         this.cloneOfBestPlayerFromPreviousGeneration = this.players[this.bestPlayerIndex].clone();
 
-        nextGen.push(this.players[this.bestPlayerIndex].clone());
-        for (let i = 1; i < this.players.length; i++) {
+        // ── Keep top N% as elites (no mutation) ─────────────────
+        let eliteCount = max(1, ceil(this.players.length * elitePercent));
+
+        // Sort by fitness descending for elite selection
+        let sortedByFitness = [...this.players].sort((a, b) => b.fitness - a.fitness);
+        for (let i = 0; i < eliteCount; i++) {
+            nextGen.push(sortedByFitness[i].clone());
+        }
+
+        // ── Fill the rest via parent selection + mutation ────────
+        for (let i = eliteCount; i < this.players.length; i++) {
             let parent = this.SelectParent();
             let baby = parent.clone()
-            // if the parent fell to the previous level then mutate the baby at the action that caused them to fall
             if(parent.fellToPreviousLevel){
                 baby.brain.mutateActionNumber(parent.fellOnActionNo);
             }
@@ -132,9 +140,6 @@ class Population {
         this.players = [];
         for (let i = 0; i < nextGen.length; i++) {
             this.players[i] = nextGen[i];
-            // if(!this.newLevelReached && this.currentBestLevelReached !== 0){// && this.currentBestLevelReached !== 37){
-            //     this.players[i].loadStartOfBestLevelPlayerState();
-            // }<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         }
 
         this.gen++;
@@ -144,9 +149,10 @@ class Population {
         this.fitnessSum = 0;
         for (let i = 0; i < this.players.length; i++) {
             this.players[i].CalculateFitness();
-            // if (this.players[i].bestLevelReached < this.players[this.bestPlayerIndex].bestLevelReached) {
-            //     this.players[i].fitness = 0;
-            // }<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            // If killBad is on, zero out players below the best level
+            if (killBadPlayers && this.players[i].bestLevelReached < this.players[this.bestPlayerIndex].bestLevelReached) {
+                this.players[i].fitness = 0;
+            }
             this.fitnessSum += this.players[i].fitness;
         }
     }
