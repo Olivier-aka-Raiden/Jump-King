@@ -22,6 +22,10 @@ let jumpChance = 0.5; //the chance that a random action is a jump
 let chanceOfFullJump = 0.2;
 // let chanceOfFullJump = 0.2;
 
+// ── Mutation parameters (now globals — adjustable via dashboard) ──
+let mutationRate = 0.1;
+let chanceOfNewInstruction = 0.03;
+
 class Brain {
 
     constructor(size, randomiseInstructions = true) {
@@ -77,8 +81,6 @@ class Brain {
     }
 
     mutate() {
-        let mutationRate = 0.1;
-        let chanceOfNewInstruction = 0.02;
         for (let i = this.parentReachedBestLevelAtActionNo; i < this.instructions.length; i++) {
             if (random() < chanceOfNewInstruction) {
                 this.instructions[i] = this.getRandomAction()

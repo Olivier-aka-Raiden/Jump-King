@@ -50,8 +50,45 @@ class Dashboard {
         this._mode = { x: this.px + 10, y: 155, w: 240, h: 22,
                        opts: ['▶Human','▶AI'], cur: testingSinglePlayer ? 0 : 1 };
 
-        // ── SECTION: Live Stats ──────────────────────────────────
+        // ── Section: Live Stats ──────────────────────────────────
         this._statsY = 195;
+
+        // ── Section: Parameters ──────────────────────────────────
+        this._params = [
+            // Population section
+            { key: 'popSize',     label: 'Population',  min: 50,  max: 2000, step: 50,
+              val: populationSize, note: '↻ reset to apply', section: 'POPULATION',
+              apply: (v) => { populationSize = v; } },
+            { key: 'startMoves',  label: 'Start Moves',  min: 1,   max: 100,  step: 1,
+              val: startingPlayerActions, note: '↻ reset to apply', section: 'POPULATION',
+              apply: (v) => { startingPlayerActions = v; } },
+
+            // Evolution section
+            { key: 'mutRate',     label: 'Mutation Rate', min: 0,   max: 0.5, step: 0.01,
+              val: mutationRate,  note: '', section: 'EVOLUTION',
+              apply: (v) => { mutationRate = v; } },
+            { key: 'newInstr',    label: 'New Action',    min: 0,   max: 0.2, step: 0.01,
+              val: chanceOfNewInstruction, note: 'chance per action', section: 'EVOLUTION',
+              apply: (v) => { chanceOfNewInstruction = v; } },
+            { key: 'addActions',  label: '+Actions/gen',  min: 1,   max: 20,  step: 1,
+              val: increaseActionsByAmount,  note: '', section: 'EVOLUTION',
+              apply: (v) => { increaseActionsByAmount = v; } },
+            { key: 'addEvery',    label: 'Every N gen',   min: 1,   max: 50,  step: 1,
+              val: increaseActionsEveryXGenerations, note: '', section: 'EVOLUTION',
+              apply: (v) => { increaseActionsEveryXGenerations = v; } },
+
+            // AI Behaviour section
+            { key: 'jumpChance',  label: 'Jump Chance',   min: 0,   max: 1,   step: 0.05,
+              val: window.jumpChance !== undefined ? window.jumpChance : 0.5, note: '',
+              section: 'BEHAVIOUR',
+              apply: (v) => { jumpChance = v; } },
+            { key: 'fullJump',    label: 'Full Jump %',   min: 0,   max: 1,   step: 0.05,
+              val: window.chanceOfFullJump !== undefined ? window.chanceOfFullJump : 0.2, note: '',
+              section: 'BEHAVIOUR',
+              apply: (v) => { chanceOfFullJump = v; } },
+        ];
+        this._paramsY = this._statsY;  // start Y for params content
+        this._paramDragIdx = -1;       // which param is being dragged (-1 = none)
 
         // ── Pause state ──────────────────────────────────────────
         this.paused = false;
@@ -208,14 +245,101 @@ class Dashboard {
     }
 
 
-    // ── Params tab (placeholder for now) ──────────────────────────
+    // ── Params tab ──────────────────────────────────────────────
 
     _drawParams() {
-        fill(this._col.dim);
-        textAlign(LEFT, TOP);
-        textSize(10);
-        textFont('Courier');
-        text('Parameter adjustments coming soon.', this.px + 12, this._statsY);
+        let px = this.px;
+        let cx = px + 12;           // content start X
+        let cw = this.pw - 24;      // content width
+        let y = this._paramsY;
+
+        // ── Section loop ─────────────────────────────────────────
+        let currentSection = '';
+        let paramIdx = 0;
+
+        for (let p of this._params) {
+            // Section header
+            if (p.section !== currentSection) {
+                currentSection = p.section;
+                fill(this._col.accent);
+                textAlign(LEFT, TOP);
+                textSize(9);
+                textFont('Courier');
+                text('── ' + currentSection + ' ──', cx, y);
+                y += 20;
+            }
+
+            // ── Label + Value row ─────────────────────────────────
+            let labelW = 100;
+            // Format value string
+            let valStr = this._formatParamVal(p);
+            fill(this._col.text);
+            textAlign(LEFT, TOP);
+            textSize(10);
+            textFont('Courier');
+            text(p.label, cx, y);
+
+            fill(this._col.accent);
+            textAlign(RIGHT, TOP);
+            text(valStr, cx + cw, y);
+
+            y += 14;
+
+            // ── Slider track ──────────────────────────────────────
+            let trackH = 8;
+            let trackTop = y;
+
+            fill(this._col.track);
+            rect(cx, trackTop, cw, trackH, 4);
+
+            // Thumb
+            let thumbX = map(p.val, p.min, p.max, cx + 4, cx + cw - 4);
+            let isDragging = (paramIdx === this._paramDragIdx);
+            fill(isDragging ? this._col.accent : this._col.thumb);
+            ellipse(thumbX, trackTop + trackH / 2, isDragging ? 16 : 13, isDragging ? 16 : 13);
+
+            // Save position for hit-testing
+            p._hitX = cx;
+            p._hitY = trackTop - 6;
+            p._hitW = cw;
+            p._hitH = trackH + 12;
+
+            y += trackH + 4;
+
+            // ── Note ──────────────────────────────────────────────
+            if (p.note) {
+                fill(this._col.dim);
+                textAlign(LEFT, TOP);
+                textSize(8);
+                textFont('Courier');
+                text(p.note, cx, y);
+                y += 13;
+            }
+
+            y += 6;  // spacing between params
+            paramIdx++;
+        }
+
+        // ── Reset hint at bottom ─────────────────────────────────
+        if (y < height - 60) {
+            fill(this._col.dim);
+            textAlign(CENTER, TOP);
+            textSize(8);
+            textFont('Courier');
+            text('Some params need a Reset to take effect', px + this.pw / 2, height - 40);
+        }
+    }
+
+
+    _formatParamVal(p) {
+        if (p.step >= 1 || Number.isInteger(p.step)) {
+            return String(p.val);
+        }
+        // Determine decimal places from step size
+        let decimals = 2;
+        if (p.step >= 0.1) decimals = 1;
+        if (p.step < 0.01) decimals = 3;
+        return p.val.toFixed(decimals);
     }
 
 
@@ -360,6 +484,19 @@ class Dashboard {
             }
         }
 
+        if (this.activeTab === 'params') {
+            // Check param slider hits
+            for (let i = 0; i < this._params.length; i++) {
+                let p = this._params[i];
+                if (p._hitX !== undefined && this._isOver(p._hitX, p._hitY, p._hitW, p._hitH)) {
+                    this._paramDragIdx = i;
+                    this._updateParamSlider(p);
+                    return true;
+                }
+            }
+            return false;
+        }
+
         if (this.activeTab !== 'controls') return false;
 
         // Play button
@@ -409,11 +546,16 @@ class Dashboard {
 
     handleMouseReleased() {
         this._speedS.drag = false;
+        this._paramDragIdx = -1;
     }
 
 
     handleMouseDragged() {
         if (this._speedS.drag) this._updateSlider(this._speedS);
+        if (this._paramDragIdx >= 0) {
+            let p = this._params[this._paramDragIdx];
+            if (p) this._updateParamSlider(p);
+        }
     }
 
 
@@ -469,7 +611,7 @@ class Dashboard {
             // AI training mode
             testingSinglePlayer = false;
             if (!population || population.players.length === 0) {
-                population = new Population(600);
+                population = new Population(populationSize);
             }
         }
     }
@@ -479,6 +621,24 @@ class Dashboard {
         let v = map(mouseX, s.x, s.x + s.w, s.min, s.max);
         s.val = floor(constrain(v, s.min, s.max));
         if (s === this._speedS) evolationSpeed = s.val;
+    }
+
+
+    _updateParamSlider(p) {
+        let cx = this.px + 12;
+        let cw = this.pw - 24;
+        let v = map(mouseX, cx, cx + cw, p.min, p.max);
+        v = constrain(v, p.min, p.max);
+        // Snap to step
+        if (p.step >= 1) {
+            v = round(v / p.step) * p.step;
+        } else {
+            let decimals = (String(p.step).split('.')[1] || '').length;
+            v = round(v / p.step) * p.step;
+            v = parseFloat(v.toFixed(decimals));
+        }
+        p.val = v;
+        if (p.apply) p.apply(v);
     }
 
 

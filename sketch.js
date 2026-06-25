@@ -45,6 +45,7 @@ let startingPlayerActions = 5;
 let increaseActionsByAmount = 5;
 let increaseActionsEveryXGenerations = 10;
 let evolationSpeed = 1;
+let populationSize = 600;
 
 
 function preload() {
@@ -78,7 +79,7 @@ function preload() {
 function setup() {
     setupCanvas();
     player = new Player();
-    population = new Population(600);
+    population = new Population(populationSize);
     setupLevels();
     setupDashboard();         // ← Init dashboard
     jumpSound.playMode('sustain');
