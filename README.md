@@ -121,15 +121,35 @@ Jump-King/
 └── libraries/                      # p5.js libraries
 ```
 
-## Dashboard (Planned)
+## Dashboard (Planned → Implemented)
 
-A training control panel to replace the minimal HUD, offering:
+A training control panel that overlays the right side of the game canvas.
 
-- **Training controls**: start/stop, speed, population size, mutation rates
-- **Live stats**: generation, best height, FPS, action length
-- **Visualization**: best player path, fitness graph over generations
-- **Level selector**: view specific levels, inspect collision geometry
-- **Save/load**: export best brain as JSON, resume training from checkpoint
+### Current Features (Tab 1 — Controls)
+
+| Feature | Description |
+|---------|-------------|
+| ▶️ Play / ⏸ Pause | Start/stop training (pauses all updates) |
+| 🎚️ Speed slider | Evolution speed 1–200 (drag to adjust) |
+| 🔄 Reset | Reset all players to start |
+| ⏪ Replay | Replay the best player's run |
+| 👤↔🤖 Mode toggle | Switch between Human play and AI training |
+| Live stats | Generation, best level, height, actions, alive count, FPS, speed, best fitness |
+| 📈 Fitness chart | Basic line chart over generations |
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `D` | Toggle dashboard visibility |
+| ↑↓ | Adjust evolution speed (legacy) |
+| B   | Replay best player (legacy) |
+| R   | Reset all players (legacy) |
+
+### Planned (Tab 2 — Params & Tab 3 — Charts)
+- Mutation rate, jump chance, population size sliders
+- Save/load brain JSON
+- Better fitness/height charting
 
 ## License
 
