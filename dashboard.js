@@ -128,6 +128,7 @@ class Dashboard {
         // ── Chart data ───────────────────────────────────────────
         this.genHistory = [];          // [{gen, height, level, fitness}]
         this._lastGenRecorded = -1;
+        this._chartMode = 'fitness';   // 'fitness', 'height', 'level'
     }
 
 
@@ -431,73 +432,164 @@ class Dashboard {
     }
 
 
-    // ── Charts tab (placeholder for now) ──────────────────────────
+    // ── Charts tab ─────────────────────────────────────────────
 
     _drawChart() {
+        let px = this.px;
+        let startY = this._tabY + 25;
+
+        // ── Chart mode toggles ──────────────────────────────────
+        let modes = ['Fitness', 'Height', 'Level'];
+        let btnW = 70;
+        let gap = 4;
+        let totalW = modes.length * btnW + (modes.length - 1) * gap;
+        let bx = px + (this.pw - totalW) / 2;
+
+        for (let i = 0; i < modes.length; i++) {
+            let active = this._chartMode === modes[i].toLowerCase();
+            let hover = this._isOver(bx, startY, btnW, 18);
+            fill(active ? this._col.accent : (hover ? this._col.btnHov : this._col.btn));
+            rect(bx, startY, btnW, 18, 3);
+            fill(active ? color(18, 18, 30) : this._col.text);
+            textAlign(CENTER, CENTER);
+            textSize(9);
+            textFont('Courier');
+            text(modes[i], bx + btnW / 2, startY + 9);
+            bx += btnW + gap;
+        }
+
+        // ── No data? ────────────────────────────────────────────
         if (this.genHistory.length < 2) {
             fill(this._col.dim);
             textAlign(CENTER, CENTER);
             textSize(10);
             textFont('Courier');
             text('Run AI training to collect data...',
-                  this.px + this.pw / 2, this._statsY + 40);
+                  px + this.pw / 2, startY + 80);
             return;
         }
 
-        // Simple line chart for fitness
-        let cx = this.px + 15;
-        let cy = this._statsY + 5;
-        let cw = this.pw - 30;
-        let ch = 220;
+        // ── Chart area ──────────────────────────────────────────
+        let chartY = startY + 28;
+        let chartX = px + 10;
+        let chartW = this.pw - 20;
+        let chartH = height - chartY - 50;
 
         // Background
         fill(12, 12, 20, 200);
-        rect(cx, cy, cw, ch);
+        rect(chartX, chartY, chartW, chartH);
 
-        // Title
-        fill(this._col.accent);
-        textAlign(LEFT, TOP);
-        textSize(10);
-        text('FITNESS OVER GENERATIONS', cx + 4, cy + 3);
+        // ── Extract data for selected mode ──────────────────────
+        let values = this.genHistory.map(d => d[this._chartMode]);
+        let maxVal = 0;
+        for (let v of values) if (v > maxVal) maxVal = v;
+        if (maxVal === 0) maxVal = 1;
 
-        // Find max fitness for scaling
-        let maxF = 0;
-        for (let d of this.genHistory) if (d.fitness > maxF) maxF = d.fitness;
-        if (maxF === 0) maxF = 1;
+        let minVal = maxVal;
+        for (let v of values) if (v < minVal) minVal = v;
 
-        // Draw line
-        let margin = 20;
-        let plotY = cy + ch - margin;
-        let plotH = ch - margin * 2 - 15;
-        let plotW = cw - margin * 2 - 5;
-        let startX = cx + margin;
+        // ── Grid lines (4 horizontal) ───────────────────────────
+        let margin = { t: 18, b: 18, l: 8, r: 8 };
+        let plotX = chartX + margin.l;
+        let plotY = chartY + margin.t;
+        let plotW = chartW - margin.l - margin.r;
+        let plotH = chartH - margin.t - margin.b;
+        let gridLines = 4;
 
+        stroke(this._col.border);
+        strokeWeight(0.5);
+        for (let i = 0; i <= gridLines; i++) {
+            let gy = plotY + (i / gridLines) * plotH;
+            line(plotX, gy, plotX + plotW, gy);
+        }
+
+        // ── Y-axis labels ───────────────────────────────────────
+        fill(this._col.dim);
+        textAlign(RIGHT, CENTER);
+        textSize(8);
+        textFont('Courier');
+        for (let i = 0; i <= gridLines; i++) {
+            let gy = plotY + (i / gridLines) * plotH;
+            let val = maxVal - (i / gridLines) * maxVal;
+            let label = val >= 1000 ? floor(val).toLocaleString() : val.toFixed(val < 10 ? 1 : 0);
+            text(label, plotX - 3, gy);
+        }
+
+        // ── Gradient fill under line ────────────────────────────
+        noStroke();
+        for (let i = 0; i < values.length - 1; i++) {
+            let x1 = plotX + (i / max(1, values.length - 1)) * plotW;
+            let x2 = plotX + ((i + 1) / max(1, values.length - 1)) * plotW;
+            let y1 = plotY + plotH - (values[i] / maxVal) * plotH;
+            let y2 = plotY + plotH - (values[i + 1] / maxVal) * plotH;
+
+            fill(80, 160, 255, 40);
+            beginShape();
+            vertex(x1, y1);
+            vertex(x2, y2);
+            vertex(x2, plotY + plotH);
+            vertex(x1, plotY + plotH);
+            endShape(CLOSE);
+        }
+
+        // ── Data line ───────────────────────────────────────────
         stroke(this._col.accent);
         strokeWeight(1.5);
         noFill();
-
         beginShape();
-        for (let i = 0; i < this.genHistory.length; i++) {
-            let d = this.genHistory[i];
-            let x = startX + (i / max(1, this.genHistory.length - 1)) * plotW;
-            let y = plotY - (d.fitness / maxF) * plotH;
+        for (let i = 0; i < values.length; i++) {
+            let x = plotX + (i / max(1, values.length - 1)) * plotW;
+            let y = plotY + plotH - (values[i] / maxVal) * plotH;
             vertex(x, y);
         }
         endShape();
 
-        // Current fitness label
+        // ── Current / max markers ───────────────────────────────
         let last = this.genHistory[this.genHistory.length - 1];
-        fill(this._col.accent);
-        textAlign(RIGHT, TOP);
-        textSize(9);
-        text(last.fitness.toLocaleString(), cx + cw - 4, cy + 16);
+        let lastVal = values[values.length - 1];
+        let lastX = plotX + plotW;
+        let lastY = plotY + plotH - (lastVal / maxVal) * plotH;
 
-        // Generation label
+        // Dot on current value
+        fill(this._col.accent);
+        noStroke();
+        ellipse(lastX, lastY, 6, 6);
+
+        // Value label at the end
+        let labelStr = lastVal >= 1000 ? lastVal.toLocaleString() : lastVal.toFixed(lastVal < 10 ? 1 : 0);
+        fill(this._col.accent);
+        textAlign(LEFT, BOTTOM);
+        textSize(9);
+        text(labelStr, lastX + 5, lastY);
+
+        // ── Generation labels on X-axis ─────────────────────────
+        let firstGen = this.genHistory[0].gen;
+        let lastGen = last.gen;
         fill(this._col.dim);
         textAlign(LEFT, TOP);
-        textSize(9);
-        text('Gen ' + last.gen, startX, plotY + 6);
-        text(last.gen, startX + plotW - 20, plotY + 6);
+        textSize(8);
+        text('Gen ' + firstGen, plotX, plotY + plotH + 2);
+        textAlign(RIGHT, TOP);
+        text('Gen ' + lastGen, plotX + plotW, plotY + plotH + 2);
+
+        // ── Stats summary below chart ───────────────────────────
+        let sy = chartY + chartH + 5;
+        let firstVal = values[0];
+        let change = lastVal - firstVal;
+        let changePct = firstVal !== 0 ? ((change / firstVal) * 100).toFixed(1) : '+∞';
+
+        let modeLabel = this._chartMode.charAt(0).toUpperCase() + this._chartMode.slice(1);
+        fill(this._col.dim);
+        textAlign(LEFT, TOP);
+        textSize(8);
+        textFont('Courier');
+        text(modeLabel + ':  ' + labelStr, chartX, sy);
+        text('Max: ' + (maxVal >= 1000 ? maxVal.toLocaleString() : maxVal), chartX + this.pw / 2, sy);
+
+        sy += 12;
+        let changeStr = (change >= 0 ? '+' : '') + (change >= 1000 ? change.toLocaleString() : change.toFixed(change < 10 ? 1 : 0));
+        fill(change >= 0 ? this._col.green : this._col.red);
+        text('Δ ' + changeStr + ' (' + changePct + '%)', chartX, sy);
     }
 
 
@@ -586,6 +678,24 @@ class Dashboard {
                         this._paramDragIdx = i;
                         this._updateParamSlider(p);
                     }
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Chart mode toggles
+        if (this.activeTab === 'charts') {
+            let modes = ['fitness', 'height', 'level'];
+            let startY = this._tabY + 25;
+            let btnW2 = 70;
+            let gap = 4;
+            let totalW = modes.length * btnW2 + (modes.length - 1) * gap;
+            let bx2 = this.px + (this.pw - totalW) / 2;
+            for (let i = 0; i < modes.length; i++) {
+                let x = bx2 + i * (btnW2 + gap);
+                if (this._isOver(x, startY, btnW2, 18)) {
+                    this._chartMode = modes[i];
                     return true;
                 }
             }
