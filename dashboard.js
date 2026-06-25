@@ -299,7 +299,12 @@ class Dashboard {
 
         // ── Clip to visible content area ─────────────────────────
         push();
-        clip(mouseX < px + this.pw ? cx : 0, startY, cw, clipH);
+        // Canvas 2D clip — p5.js 1.x push/pop tracks ctx state correctly
+        if (drawingContext) {
+            drawingContext.beginPath();
+            drawingContext.rect(cx, startY, cw, clipH);
+            drawingContext.clip();
+        }
 
         // ── Section loop ─────────────────────────────────────────
         let currentSection = '';
