@@ -295,14 +295,7 @@ class Dashboard {
         // ── Start right below tabs ──────────────────────────────
         let startY = this._tabY + 25;
         let y = startY - this._paramsScrollY;
-
-        // ── Clipping region ─────────────────────────────────────
         let clipH = height - startY - 10;
-        push();
-        noStroke();
-        rectMode(CORNER);
-        // Clip to panel content area
-        clip(cx, startY, this.pw - 24, clipH);
 
         // ── Section loop ─────────────────────────────────────────
         let currentSection = '';
@@ -310,7 +303,7 @@ class Dashboard {
         let firstY = y;
 
         for (let p of this._params) {
-            // Section header
+            // ── Section header ──────────────────────────────────
             if (p.section !== currentSection) {
                 currentSection = p.section;
                 fill(this._col.accent);
@@ -339,7 +332,6 @@ class Dashboard {
             let isBool = (p.min === 0 && p.max === 1 && p.step === 1);
 
             if (isBool) {
-                // ── Toggle switch ─────────────────────────────────
                 let swW = 44, swH = 22;
                 let swX = cx, swY = y - 4;
                 let on = p.val >= 0.5;
@@ -362,7 +354,6 @@ class Dashboard {
 
                 y += swH + 2;
             } else {
-                // ── Slider track ──────────────────────────────────
                 let trackH = 8;
                 let trackTop = y;
 
@@ -380,7 +371,7 @@ class Dashboard {
                 y += trackH + 4;
             }
 
-            // ── Note ──────────────────────────────────────────────
+            // ── Note ────────────────────────────────────────
             if (p.note) {
                 fill(this._col.dim);
                 textAlign(LEFT, TOP);
@@ -390,23 +381,31 @@ class Dashboard {
                 y += 13;
             }
 
-            y += 6;  // spacing between params
+            y += 6;
             paramIdx++;
         }
 
         // ── Store total content height for scroll bounds ─────────
         this._paramsContentH = y - startY + this._paramsScrollY + 20;
 
+        // ── Draw overflow mask (no clip() — old p5.js) ──────────
+        fill(this._col.bg);
+        noStroke();
+        // Top mask: cover anything above the viewport
+        rect(px + 1, this._tabY + 22, this.pw - 1, startY - this._tabY - 22);
+        // Bottom mask: cover anything below the viewport
+        if (startY + clipH < height) {
+            rect(px + 1, startY + clipH, this.pw - 1, height - startY - clipH);
+        }
+
         // ── Scrollbar (if content overflows) ─────────────────────
         if (this._paramsContentH > clipH) {
-            let barH = clipH * (clipH / this._paramsContentH);
+            let barH = max(10, clipH * (clipH / this._paramsContentH));
             let maxScroll = this._paramsContentH - clipH;
             let barY = startY + (this._paramsScrollY / maxScroll) * (clipH - barH);
             fill(this._col.btn);
             rect(px + this.pw - 8, barY, 4, barH, 2);
         }
-
-        pop(); // end clip
 
         // ── Hint text at bottom ─────────────────────────────────
         if (this._paramsContentH > clipH + 5) {
