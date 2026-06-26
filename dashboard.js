@@ -847,9 +847,11 @@ class Dashboard {
         if (testingSinglePlayer || !population) return;
         let best = population.players[population.bestPlayerIndex];
         let data = {
+            version: 2,
             gen: population.gen,
             bestHeight: population.bestHeight,
             bestLevel: population.currentBestLevelReached,
+            bestLevelReachedOnActionNo: best.bestLevelReachedOnActionNo,
             instructions: best.brain.toJSON()
         };
         let jsonStr = JSON.stringify(data, null, 2);
@@ -858,7 +860,7 @@ class Dashboard {
         let url = URL.createObjectURL(blob);
         let a = document.createElement('a');
         a.href = url;
-        a.download = 'brain-gen' + population.gen + '.json';
+        a.download = 'checkpoint-gen' + population.gen + '.json';
         a.click();
         URL.revokeObjectURL(url);
     }
@@ -867,7 +869,6 @@ class Dashboard {
     _loadBrain() {
         let input = document.getElementById('brainFileInput');
         if (!input) {
-            // Create hidden input on the fly
             input = document.createElement('input');
             input.type = 'file';
             input.id = 'brainFileInput';
@@ -886,28 +887,40 @@ class Dashboard {
                         print("Invalid brain file: no instructions");
                         return;
                     }
-                    // Create a player from the saved brain
-                    let importedBrain = Brain.fromJSON(data.instructions);
-                    let importedPlayer = new Player();
-                    importedPlayer.brain = importedBrain;
-                    importedPlayer.hasFinishedInstructions = false;
+                    let baseBrain = Brain.fromJSON(data.instructions);
+                    let savedGen = data.gen || 1;
+                    let savedLevel = data.bestLevel || 0;
+                    let savedHeight = data.bestHeight || 0;
+                    let savedActionNo = data.bestLevelReachedOnActionNo || 0;
 
-                    if (!testingSinglePlayer && population) {
-                        // Replace the worst player with the imported brain
-                        let worstIdx = 0;
-                        for (let i = 1; i < population.players.length; i++) {
-                            if (population.players[i].fitness < population.players[worstIdx].fitness) {
-                                worstIdx = i;
-                            }
-                        }
-                        population.players[worstIdx] = importedPlayer;
-                        print("Loaded brain from gen", data.gen || "?");
-                    } else {
-                        // Create a new population with this brain as the first player
-                        testingSinglePlayer = false;
-                        population = new Population(populationSize);
-                        population.players[0] = importedPlayer;
+                    // Full checkpoint restore: create new population,
+                    // give ALL players a clone of the loaded brain
+                    testingSinglePlayer = false;
+                    population = new Population(populationSize);
+
+                    for (let i = 0; i < population.players.length; i++) {
+                        let p = population.players[i];
+                        p.brain = baseBrain.clone();
+                        p.brain.currentInstructionNumber = 0;
+                        p.brain.parentReachedBestLevelAtActionNo = savedActionNo;
+                        p.bestLevelReachedOnActionNo = savedActionNo;
+                        p.hasFinishedInstructions = false;
                     }
+
+                    population.gen = savedGen;
+                    population.currentBestLevelReached = savedLevel;
+                    population.bestHeight = savedHeight;
+                    population.gensSinceNewLevel = 0;
+                    population.lastLevelGen = savedGen;
+
+                    // Reset chart data
+                    this.genHistory = [];
+                    this._lastGenRecorded = -1;
+
+                    print("Loaded checkpoint — gen " + savedGen +
+                          ", level " + savedLevel +
+                          ", height " + savedHeight +
+                          ", pop " + populationSize);
                 } catch (err) {
                     print("Failed to load brain:", err);
                 }
